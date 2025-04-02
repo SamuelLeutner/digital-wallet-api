@@ -1,5 +1,3 @@
-
-
 # Documentação da Arquitetura da API
 
 ## 1. Visão Geral

@@ -16,3 +16,4 @@ A API segue um modelo baseado em eventos (EDA), garantindo alta disponibilidade 
 
 ### Documentações
 [Documentação da Arquitetura da API](docs/ARCHITECTURE.md)
+[Documentação de Desenvoldimento da API](docs/DEVELOPER.md)
