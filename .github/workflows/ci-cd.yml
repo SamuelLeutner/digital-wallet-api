@@ -1,0 +1,102 @@
+name: CI Pipeline
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Copy .env file
+        run: cp .env-example .env
+
+      - name: Build Docker images
+        run: docker compose build
+
+  test-setup:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Copy .env file
+        run: cp .env-example .env
+
+      - name: Start services
+        run: docker compose up -d
+
+      - name: Wait for services to be healthy
+        run: |
+          until docker compose ps | grep -E "wallet_mysql.*healthy" && \
+                docker compose ps | grep -E "wallet_redis.*healthy" && \
+                docker compose ps | grep -E "wallet_rabbitmq.*healthy"; do
+            echo "Waiting for services to be healthy..."
+            sleep 5
+          done
+          echo "All services are healthy!"
+          docker compose ps
+
+      - name: Run migrations and seeders
+        run: docker compose exec -T api_gateway php bin/hyperf.php migrate --seed
+
+  code-quality:
+    runs-on: ubuntu-latest
+    needs: test-setup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Copy .env file
+        run: cp .env-example .env
+
+      - name: Start services (ensure running)
+        run: docker compose up -d
+
+      - name: Run code quality check (PHPMD)
+        run: docker compose run --rm phpqa phpmd app text phpmd.xml | grep -v 'Deprecated'
+
+  tests:
+    runs-on: ubuntu-latest
+    needs: test-setup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Copy .env file
+        run: cp .env-example .env
+
+      - name: Start services (ensure running)
+        run: docker compose up -d
+
+      - name: Run tests
+        run: docker compose exec -T api_gateway composer test
+
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: [ code-quality, tests ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Shutdown services
+        run: docker compose down
