@@ -1,11 +1,12 @@
 # Documentação de Desenvolvimento da API
 
-### API Gateway
+## API Gateway
 
 - **URL:** [`http://localhost:9501/`](http://localhost:9501/)
-- Responsável por rotear as requisições para os microserviços.
+- Componente central do sistema. Responsável por orquestrar os fluxos, rotear requisições e aplicar testes automatizados
+  nos endpoints.
 
-### Banco de Dados (MySQL)
+## Banco de Dados (MySQL)
 
 - **URL:** `mysql://localhost:3306`
 - **Credenciais:**
@@ -13,76 +14,76 @@
     - **Senha:** `${DB_PASSWORD}`
     - **Database:** `${DB_DATABASE}`
 
-### Visualizador de Banco de Dados (Adminer)
+## Visualizador de Banco (Adminer)
 
 - **URL:** [`http://localhost:8080/`](http://localhost:8080/)
-- Ferramenta para gerenciar o banco de dados via interface web.
+- Interface web para consulta e manutenção do banco de dados.
 
-### Cache (Redis)
+## Cache (Redis)
 
 - **URL:** `redis://localhost:6379`
 - **Senha:** `${REDIS_PASSWORD}`
-- Utilizado para armazenamento em cache e filas de mensagens.
+- Utilizado para cache de dados e gerenciamento de sessões.
 
-### RabbitMQ
+## RabbitMQ
 
 - **URL:** [`http://localhost:15672/`](http://localhost:15672/)
 - **Credenciais:**
     - **Usuário:** `${RABBITMQ_USER}`
     - **Senha:** `${RABBITMQ_PASSWORD}`
-- Utilizado para gerenciamento de filas e mensagens assíncronas entre serviços.
+- Utilizado para comunicação assíncrona entre os microsserviços através de eventos e filas (mensageria).
 
-### Prometheus
+## Prometheus
 
 - **URL:** [`http://localhost:9090/`](http://localhost:9090/)
-- Ferramenta de monitoramento e coleta de métricas.
+- Responsável pela coleta de métricas e monitoramento da infraestrutura.
 
-### Grafana
+## Grafana
 
 - **URL:** [`http://localhost:${GRAFANA_PORT}/`](http://localhost:${GRAFANA_PORT}/)
 - **Credenciais:**
     - **Usuário:** `admin`
     - **Senha:** `admin`
-- Interface para visualização de métricas e dashboards personalizados.
+- Ferramenta de visualização de métricas e dashboards em tempo real.
 
 ---
 
-## Serviços
+## Serviços (Docker Compose)
 
 ### MySQL
 
 - Porta: `3306`
-- Persistência de dados: `mysql_data:/var/lib/mysql`
+- Volume: `mysql_data:/var/lib/mysql`
 
 ### Redis
 
 - Porta: `6379`
-- Persistência de dados: `redis_data:/data`
+- Volume: `redis_data:/data`
 
 ### RabbitMQ
 
-- Porta: `5672` (mensageria)
-- Porta: `15672` (painel de gerenciamento)
-- Persistência de dados: `rabbitmq_data:/var/lib/rabbitmq`
-- Logs: `rabbitmq_logs:/var/log/rabbitmq`
+- Portas: `5672` (broker), `15672` (painel)
+- Volumes:
+    - `rabbitmq_data:/var/lib/rabbitmq`
+    - `rabbitmq_logs:/var/log/rabbitmq`
 
 ### API Gateway
 
 - Porta: `${API_GATEWAY_PORT}:9501`
-- Mapeado para o diretório: `./api-gateway:/opt/www`
+- Código-fonte: `./api-gateway:/opt/www`
 
 ### Monitoramento
 
-- **Prometheus**: `9090`
-- **Grafana**: `${GRAFANA_PORT}:3000`
-- Configurações de provisionamento: `./monitoring/grafana/provisioning`
+- Prometheus: `9090`
+- Grafana: `${GRAFANA_PORT}:3000`
+- Provisionamento: `./monitoring/grafana/provisioning`
 
 ---
 
 ## Referências
 
-- [Hyperf Documentation](https://hyperf.wiki/3.1/#/en/)
-- [Prometheus Overview](https://prometheus.io/docs/introduction/overview/)
-- [Instalação do Prometheus via Docker](https://prometheus.io/docs/prometheus/latest/installation/#using-docker)
-- [Grafana Documentation](https://grafana.com/docs/)
-- [Instalação do Grafana via Docker](https://grafana.com/docs/grafana/latest/setup-grafana/installation/docker/)
+- [Documentação Hyperf](https://hyperf.wiki/3.1/#/en/)
+- [Introdução ao Prometheus](https://prometheus.io/docs/introduction/overview/)
+- [Prometheus via Docker](https://prometheus.io/docs/prometheus/latest/installation/#using-docker)
+- [Documentação Grafana](https://grafana.com/docs/)
+- [Grafana via Docker](https://grafana.com/docs/grafana/latest/setup-grafana/installation/docker/)

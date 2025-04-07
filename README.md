@@ -2,75 +2,80 @@
 
 ## Tecnologias Utilizadas
 
-Este projeto utiliza uma arquitetura baseada em microsserviços, garantindo escalabilidade e comunicação assíncrona. As
-principais tecnologias empregadas incluem:
+Este projeto segue uma arquitetura de microsserviços, promovendo escalabilidade e resiliência através de comunicação
+assíncrona. As principais tecnologias incluem:
 
-- **Hyperf (PHP)**: API Gateway para gerenciamento de requisições e roteamento inteligente.
-- **Node.js + Socket.IO**: Serviço WebSocket para notificações em tempo real.
-- **MySQL**: Banco de dados relacional para garantir consistência transacional.
-- **Redis**: Cache e gerenciamento de sessões.
-- **RabbitMQ**: Mensageria para orquestração assíncrona dos eventos.
-- **Prometheus & Grafana**: Stack de observabilidade para métricas e logs.
+- **Hyperf (PHP):** API Gateway principal, centralizando o fluxo de requisições e testes.
+- **MySQL:** Banco relacional para garantir integridade de dados.
+- **Redis:** Cache e controle de sessões.
+- **RabbitMQ:** Sistema de mensageria para orquestração de eventos e aplicação do padrão Saga.
 
 ## Arquitetura
 
-A API segue um modelo baseado em eventos (EDA), garantindo alta disponibilidade e consistência eventual entre os
-serviços.
+- Baseada em **Event-Driven Architecture (EDA)** com consistência eventual.
+- Uso do padrão **Saga** para controle de transações distribuídas.
+- Circuit Breaker previsto para isolamento de falhas em serviços externos.
+- Separado por escopos de microsserviços: transferências, notificações, compensações e autenticação (futuramente).
 
-### Documentações
+## Collection Postman
 
-- [Documentação da Arquitetura da API](docs/ARCHITECTURE.md)
-- [Documentação de Desenvoldimento da API](docs/DEVELOPER.md)
+A collection Postman contém os principais endpoints organizados por domínio e escopo da aplicação.
+
+[Acessar a collection](https://www.postman.com/winter-space-365675/workspace/digital-wallet-api/collection/27150340-decf2260-6581-47a6-b3f0-0cf9928cfd4c?action=share&creator=27150340)
+
+## Documentações
+
+- [Documentação da Arquitetura](docs/ARCHITECTURE.md)
+- [Guia de Desenvolvimento](docs/DEVELOPER.md)
+
+## UML da Arquitetura
+
+![UML da arquitetura](docs/project-architecture.png)
 
 ## Pré-requisitos
 
-- Docker
+- Docker e Docker Compose
 
 ## Instalação
 
-1. Clone o repositório:
+### 1. Clonar o repositório
 
 ```bash
-  git clone https://github.com/SamuelLeutner/digital-wallet-api.git
+    git clone https://github.com/SamuelLeutner/digital-wallet-api.git
+    cd digital-wallet-api
 ```
 
-Acesse o repositório
-
-```bash
-  cd digital-wallet-api
-```
-
-Copie as .env
+### 2. Copiar variáveis de ambiente
 
 ```bash
   cp .env-example .env
 ```
 
-2. Buildar o Projeto
+### 3. Construir o projeto
 
 ```bash
   docker compose build
 ```
 
-3. Startar o projeto
+### 4. Subir containers
 
 ```bash
   docker compose up -d
 ```
 
-4. Rodar as migrations e seeders
+### 5. Rodar migrações e seeders
 
 ```bash
   docker compose exec api_gateway php bin/hyperf.php migrate --seed
 ```
 
-5. Para verificar a qualidade código
+### 6. Verificar qualidade do código
 
 ```bash
-    docker-compose run --rm phpqa phpmd app text phpmd.xml | grep -v 'Deprecated'
+    docker compose run --rm phpqa phpmd app text phpmd.xml | grep -v 'Deprecated'
 ```
 
-6. Para rodar os testes
+### 7. Executar testes
 
 ```bash
   docker compose exec api_gateway composer test
