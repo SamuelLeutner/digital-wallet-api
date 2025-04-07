@@ -15,7 +15,7 @@ class WalletRepository
     ) {
     }
 
-    public function debitWallet(string $walletId, float $amount): void
+    public function debitWallet(int $walletId, float $amount): void
     {
         $this->database->transaction(function () use ($walletId, $amount) {
             $wallet = $this->model->newQuery()
@@ -30,7 +30,7 @@ class WalletRepository
         });
     }
 
-    public function creditWallet(string $walletId, float $amount): void
+    public function creditWallet(int $walletId, float $amount): void
     {
         $this->database->transaction(function () use ($walletId, $amount) {
             $wallet = $this->model->newQuery()
