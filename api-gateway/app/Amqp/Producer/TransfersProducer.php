@@ -7,13 +7,11 @@ namespace App\Amqp\Producer;
 use Hyperf\Amqp\Annotation\Producer;
 use Hyperf\Amqp\Message\ProducerMessage;
 
-#[Producer(exchange: 'ws_notifications', routingKey: 'ws.notify')]
-class NotificationsProducer extends ProducerMessage
+#[Producer(exchange: 'transfers', routingKey: 'transfers.create')]
+class TransfersProducer extends ProducerMessage
 {
     protected array $properties = [
         'delivery_mode' => 2,
-        'expiration' => 86400000,
-        'content_type' => 'application/json',
     ];
 
     public function __construct($data)
