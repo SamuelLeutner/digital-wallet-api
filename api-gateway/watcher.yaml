@@ -1,7 +1,0 @@
-dir:
-  - app
-  - config
-watch:
-  - .php
-ext:
-  - .php

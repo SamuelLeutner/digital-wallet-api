@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+
 /**
  * This file is part of Hyperf.
  *
@@ -9,12 +10,13 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
+
 use function Hyperf\Support\env;
 
 return [
     'default' => [
-        'host' => env('AMQP_HOST', 'localhost'),
-        'port' => (int) env('AMQP_PORT', 5672),
+        'host' => env('AMQP_HOST', 'rabbitmq'),
+        'port' => (int)env('AMQP_PORT', 5672),
         'user' => env('AMQP_USER', 'guest'),
         'password' => env('AMQP_PASSWORD', 'guest'),
         'vhost' => env('AMQP_VHOST', '/'),
@@ -22,7 +24,10 @@ return [
             'limit' => 1,
         ],
         'pool' => [
-            'connections' => 2,
+            'min_connections' => 1,
+            'max_connections' => 10,
+            'connect_timeout' => 10.0,
+            'wait_timeout' => 3.0,
         ],
         'params' => [
             'insist' => false,

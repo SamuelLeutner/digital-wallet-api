@@ -6,3 +6,4 @@
 .idea
 runtime/*
 tests
+vendor/
