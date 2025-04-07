@@ -2,7 +2,8 @@
 
 namespace App\Exception\ExternalAPI;
 
-class NotificationFailedException
-{
+use Hyperf\Server\Exception\ServerException;
 
+class NotificationFailedException extends ServerException
+{
 }

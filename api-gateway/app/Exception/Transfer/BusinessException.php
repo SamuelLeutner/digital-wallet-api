@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exception;
+namespace App\Exception\Transfer;
 
 use Throwable;
 use Hyperf\Server\Exception\ServerException;

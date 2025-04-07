@@ -2,7 +2,8 @@
 
 namespace App\Exception\ExternalAPI;
 
-class AuthorizationFailedException
-{
+use Hyperf\Server\Exception\ServerException;
 
+class AuthorizationFailedException extends ServerException
+{
 }

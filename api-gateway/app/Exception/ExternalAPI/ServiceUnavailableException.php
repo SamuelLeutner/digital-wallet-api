@@ -2,7 +2,8 @@
 
 namespace App\Exception\ExternalAPI;
 
-class ServiceUnavailableException
-{
+use Hyperf\Server\Exception\ServerException;
 
+class ServiceUnavailableException extends ServerException
+{
 }
