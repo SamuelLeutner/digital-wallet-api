@@ -14,8 +14,8 @@ LABEL maintainer="Hyperf Developers <group@hyperf.io>" version="1.0" license="MI
 # --build-arg timezone=Asia/Shanghai
 ARG timezone
 
-ENV TIMEZONE=${timezone:-"Asia/Shanghai"} \
-    APP_ENV=prod \
+ENV TIMEZONE=${timezone:-"America/Sao_Paulo"} \
+    APP_ENV=dev \
     SCAN_CACHEABLE=(true)
 
 # update
@@ -42,13 +42,12 @@ RUN set -ex \
 
 WORKDIR /opt/www
 
-# Composer Cache
-# COPY ./composer.* /opt/www/
-# RUN composer install --no-dev --no-scripts
-
-COPY . /opt/www
-RUN composer require hyperf/watcher --dev && composer install --no-dev -o && php bin/hyperf.php
+RUN composer --version
 
 EXPOSE 9501
 
-ENTRYPOINT ["php", "/opt/www/bin/hyperf.php", "server:watch"]
+CMD if [ ! -d "/opt/www/vendor" ] || [ ! -f "/opt/www/vendor/autoload.php" ]; then \
+        cd /opt/www && \
+        composer install --no-interaction; \
+    fi && \
+    php /opt/www/bin/hyperf.php server:watch

@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<ruleset name="Hyperf Rules"
+         xmlns="http://pmd.sf.net/ruleset/1.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sf.net/ruleset/1.0.0 https://pmd.sourceforge.io/ruleset_1_0_0.xsd">
+
+    <description>Custom rules for Hyperf application</description>
+
+    <exclude-pattern>vendor/</exclude-pattern>
+    <exclude-pattern>runtime/</exclude-pattern>
+    <exclude-pattern>app/Listener/</exclude-pattern>
+    <exclude-pattern>app/Exception/Handler/</exclude-pattern>
+
+    <rule ref="rulesets/cleancode.xml/StaticAccess">
+        <properties>
+            <property name="exceptions"
+                      value="Hyperf\Collection\Arr,Hyperf\Utils\Arr,Hyperf\Coordinator\CoordinatorManager,Hyperf\Database\Model,Hyperf\DbConnection\Db"/>
+        </properties>
+    </rule>
+
+    <rule ref="rulesets/unusedcode.xml/UnusedFormalParameter">
+        <properties>
+            <property name="allowUnusedParametersWhenImplementingAbstract" value="true"/>
+            <property name="allowUnusedParametersWhenOverridingConcrete" value="true"/>
+        </properties>
+    </rule>
+</ruleset>
