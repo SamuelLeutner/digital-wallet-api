@@ -9,73 +9,61 @@ use Carbon\Carbon;
 use App\Model\User;
 use Hyperf\Amqp\Producer;
 use App\Model\Transaction;
-use Hyperf\Stringable\Str;
 use Hyperf\DbConnection\Db;
-use App\Exception\BusinessException;
+use App\Repository\UserRepository;
 use App\Amqp\Producer\TransfersProducer;
+use App\Repository\TransactionRepository;
+use App\Exception\Transfer\BusinessException;
+use App\Exception\Transfer\InsufficientFundsException;
 
 class TransferService
 {
     public function __construct(
-        private readonly Producer    $producer,
-        private readonly User        $userModel,
-        private readonly Transaction $transactionModel,
-    )
-    {
+        protected readonly Db $database,
+        protected readonly Producer $producer,
+        protected readonly UserRepository $userRepository,
+        protected readonly TransactionRepository $transactionRepository,
+    ) {
     }
 
+    /**
+     * @throws Throwable
+     */
     public function transfer(array $params): array
     {
-        $payerId = $params['payer'];
-        $payeeId = $params['payee'];
-        $amount = $params['value'];
+        try {
+            $payerId = $params['payer'];
+            $payeeId = $params['payee'];
+            $amount = $params['value'];
 
-        $users = $this->getUsersByIds([$payerId, $payeeId], 'user_type');
+            $this->database->beginTransaction();
 
-        $payer = $users->get($payerId);
-        $payee = $users->get($payeeId);
+            [$payer, $payee] = $this->userRepository->getUsersByIds([$payerId, $payeeId], 'user_type');
 
-        $payerWalletId = $payer->wallet->id;
-        $payeeWalletId = $payee->wallet->id;
-
-        var_dump('$payer', $payer);
-        var_dump('$payee', $payee);
-        var_dump('$payerWalletId', $payerWalletId);
-        var_dump('$payeeWalletId', $payeeWalletId);
-
-        return Db::transaction(function () use ($payer, $payeeId, $payerWalletId, $payeeWalletId, $amount) {
             $this->validateTransfer($amount, $payer, $payeeId);
 
-            $transaction = $this->createTransaction($payer, $payeeId, $payerWalletId, $payeeWalletId, $amount);
+            $transaction = $this->transactionRepository->createTransaction($payer, $payee, $amount);
+            $this->transactionRepository->initializeSaga($transaction->tx_id);
+
+            $this->database->commit();
+
             $this->publishToQueue($transaction);
 
             return [
                 'status' => 'queued',
                 'transaction_id' => $transaction->id,
-                'timestamp' => Carbon::now()->toDateTimeString(),
+                'timestamp' => Carbon::now()->format('H:i:s d-m-Y'),
             ];
-        });
-    }
-
-    public function getUsersByIds(array $userIds, string $column)
-    {
-        $users = $this->userModel->newQuery()
-            ->whereIn('id', $userIds)
-            ->get(['id', $column])
-            ->keyBy('id');
-
-        var_dump('$users', $users);
-        if ($users->count() !== count($userIds)) {
-            throw new BusinessException('USER_NOT_FOUND', 'One or more users not found', 404);
+        } catch (Throwable $exception) {
+            $this->database->rollBack();
+            throw $exception;
         }
-
-        return $users;
     }
 
     private function validateTransfer(float $amount, User $payer, int $payeeId): void
     {
-        if ($payer->id === $payeeId) {
-            throw new BusinessException('INVALID_TRANSFER', 'Payer and payee cannot be the same', 400);
+        if ($amount <= 0) {
+            throw new BusinessException('INVALID_AMOUNT', 'Transfer amount must be greater than zero', 400);
         }
 
         if ($payer->isMerchant()) {
@@ -83,20 +71,12 @@ class TransferService
         }
 
         if (!$payer->wallet || !$payer->wallet->hasSufficientBalance($amount)) {
-            throw new BusinessException('INSUFFICIENT_BALANCE', 'Insufficient balance for transfer', 400);
+            throw new InsufficientFundsException();
         }
-    }
 
-    private function createTransaction(User $payer, int $payeeId, int $payerWalletId, int $payeeWalletId, float $amount): Transaction
-    {
-        return $this->transactionModel->newQuery()->create([
-            'tx_id' => Str::uuid()->toString(),
-            'payer_id' => $payer->id,
-            'payee_id' => $payeeId,
-            'payer_wallet_id' => $payerWalletId,
-            'payee_wallet_id' => $payeeWalletId,
-            'amount' => $amount,
-        ]);
+        if ($payer->id === $payeeId) {
+            throw new BusinessException('SELF_TRANSFER', 'Cannot transfer to yourself', 400);
+        }
     }
 
     private function publishToQueue(Transaction $transaction): void
@@ -106,14 +86,9 @@ class TransferService
 
             $this->producer->produce($message);
         } catch (Throwable $e) {
-            var_dump('Failed to publish message', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             throw new BusinessException(
                 'QUEUE_ERROR',
-                'Failed to queue transaction: ' . $e->getMessage(),
+                'Failed to queue transaction: '.$e->getMessage(),
                 503
             );
         }

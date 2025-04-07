@@ -4,36 +4,78 @@ namespace App\Client;
 
 use RuntimeException;
 use GuzzleHttp\Client;
+use Psr\Log\LoggerInterface;
 use GuzzleHttp\Exception\GuzzleException;
 
-const BASE_URL_NOTIFY_API = 'https://util.devi.tools/api/v1';
+const BASE_URL_EXTERNAL_API = 'https://util.devi.tools/api';
+const DEFAULT_TIMEOUT = 5;
 
-class NotificationClient
+class ExternalAPIClient
 {
     public function __construct(
-        private readonly Client $httpClient,
-    )
-    {
+        private readonly LoggerInterface $logger
+    ) {
     }
 
-    public function notify(string $message, array $payload = [], string $endpoint = '/notify'): int
+    public function sendToAuthorize(string $endpoint = '/v2/authorize'): array
     {
-        $url = BASE_URL_NOTIFY_API . $endpoint;
-        $data = array_merge(['message' => $message], $payload);
+        return $this->makeRequest('GET', $endpoint);
+    }
+
+    public function sendToNotify(string $message, array $payload = [], string $endpoint = '/v1/notify'): array
+    {
+        return $this->makeRequest('POST', $endpoint, [
+            'message' => $message,
+            'payload' => $payload,
+        ]);
+    }
+
+    private function makeRequest(string $method, string $endpoint, array $data = []): array
+    {
+        $url = BASE_URL_EXTERNAL_API.$endpoint;
 
         try {
-            $response = $this->httpClient->post($url, [
+            $httpClient = new Client();
+
+            $options = [
                 'json' => $data,
                 'headers' => [
                     'Accept' => 'application/json',
                     'Content-Type' => 'application/json',
                 ],
-                'timeout' => 5,
+                'timeout' => DEFAULT_TIMEOUT,
+            ];
+
+            $this->logger->debug('Making external API request', [
+                'method' => $method,
+                'url' => $url,
+                'data' => $data,
             ]);
 
-            return $response->getStatusCode();
+            $response = $httpClient->request($method, $url, $options);
+            $body = json_decode((string)$response->getBody(), true) ?? [];
+
+            $this->logger->debug('External API response', [
+                'status_code' => $response->getStatusCode(),
+                'body' => $body,
+            ]);
+
+            return [
+                'status_code' => $response->getStatusCode(),
+                'data' => $body,
+            ];
         } catch (GuzzleException $e) {
-            throw new RuntimeException('Failed to send notification: ' . $e->getMessage(), $e->getCode(), $e);
+            $this->logger->error('External API request failed', [
+                'error' => $e->getMessage(),
+                'url' => $url,
+                'method' => $method,
+            ]);
+
+            throw new RuntimeException(
+                sprintf('External API error: %s', $e->getMessage()),
+                $e->getCode(),
+                $e
+            );
         }
     }
 }
