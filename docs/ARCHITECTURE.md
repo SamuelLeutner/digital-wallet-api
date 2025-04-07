@@ -1,84 +1,138 @@
-# Documentação da Arquitetura da API
+# Arquitetura Base para Plataforma de Transferências
 
-## 1. Visão Geral
+---
 
-Esta API foi projetada para gerenciar transações financeiras de forma eficiente e escalável, utilizando uma arquitetura
-baseada em microsserviços e eventos (EDA). Possibilitando a segregação das responsabilidades segundo o padrão (CQRS). O
-objetivo é garantir segurança, rastreabilidade e comunicação assíncrona entre os serviços.
+#### Contexto
 
-## 2. UML da Arquitetura
+Este projeto propõe uma arquitetura voltada à construção de uma plataforma de transferências entre usuários, com lógica
+de negócio rigorosa, integração com serviços externos e resiliência a falhas. O desafio exige consistência, boa
+separação de responsabilidades e testes automatizados confiáveis.
 
-![UML digital-wallet-api](https://www.mermaidchart.com/raw/6b2a1b6d-3931-4f95-9823-2216c04d767b?theme=light&version=v0.1&format=png)
+---
 
-## 3. Componentes Principais
+### Diagrama UML da Arquitetura
 
-### 3.1 API Gateway
+Abaixo está o diagrama que representa a visão de alto nível da arquitetura da plataforma de transferências, com foco no
+fluxo de transferência, comunicação assíncrona via fila e integração com serviços externos.
 
-**Tecnologia**: Hyperf (PHP)
+![UML da arquitetura](project-architecture.png)
 
-**Responsabilidades**:
+---
 
-- Receber e validar requisições HTTP/REST
-- Roteamento inteligente para microsserviços
-- Balanceamento de carga básico
-- Gerenciamento de circuit breaker para serviços externos
-- Coleta de métricas básicas de performance
+#### Decisão
 
-### 3.2 Socket Service
+Foi adotada uma **arquitetura modular baseada em Hyperf**, com foco principal no `api-gateway` como **núcleo central do
+sistema**.
 
-**Tecnologia**: Node.js com Socket.IO
+---
 
-**Responsabilidades**:
+#### API Gateway como Core da Solução
 
-- Manutenção de conexões persistentes WebSocket
-- Notificações em tempo real para clientes
-- Gerenciamento de estado de conexões
-- Broadcast de atualizações de transações
-- Controle de sessões ativas
+O componente `api-gateway` concentra:
 
-### 3.3 Authorization API (Serviço Externo)
+- Toda a **lógica de orquestração** da operação de transferência;
+- Validações de negócio (como tipo de usuário, saldo e restrições);
+- Execução e controle da **transação inicial no banco**;
+- Emissão de mensagens para filas que acionam etapas assíncronas da saga;
+- Retorno imediato para o cliente com status da requisição;
+- Implementação dos **testes de unidade e integração**;
+- Simulações dos serviços externos com testes controlados;
+- Registro e controle das etapas da saga de transferência.
 
-**Integração**:
+A decisão de centralizar o domínio no `api-gateway` garante **testabilidade, rastreabilidade e controle transacional**
+completo da aplicação.
 
-- Endpoint: `GET /authorize`
-- Protocolo: REST/JSON
-- Circuit breaker: 3 falhas consecutivas abrem o circuito
+---
 
-### 3.4 Notification API (Serviço Externo)
+#### Componentes da Arquitetura
 
-**Integração**:
+##### `api-gateway` (Hyperf)
 
-- Endpoint: `POST /notify`
-- Protocolo: REST/JSON
-- Política de retentativas: 3 tentativas com backoff exponencial
-- DLQ (Dead Letter Queue) para falhas persistentes
+- Entry point RESTful para o sistema;
+- Camada principal de orquestração de negócio;
+- Persistência das transações e etapas da saga;
+- Geração de eventos para mensageria (transferência, compensação e notificação);
+- Core dos testes automatizados.
 
-### 3.5 Infraestrutura de Dados
+##### Banco de Dados (MySQL)
 
-**MySQL**:
+- Estrutura relacional para usuários, carteiras, transações, etapas da saga e notificações;
+- Suporte a transações ACID.
 
-- Esquema principal:
-    - `wallets` (saldo, tipo de usuário)
-    - `transactions` (histórico completo)
-- Configuração:
-    - Isolation level: READ COMMITTED
-    - Índices otimizados para consultas por usuário
+##### RabbitMQ – Mensageria
 
-**Redis**:
+Foi adotado o **modelo de tópicos (topic exchange)** com separação por contexto:
 
-- Uso principal:
-    - Armazenamento de estado de conexões WebSocket
-    - Cache de consultas frequentes
-    - Pub/Sub para notificações
-- TTL padrão: 24 horas para sessões
+| Exchange           | Routing Key        | Producer                 | Propósito                                  |
+|--------------------|--------------------|--------------------------|--------------------------------------------|
+| `transfers`        | `transfers.create` | `TransfersProducer`      | Inicia o fluxo de transferência            |
+| `saga`             | `saga.compensate`  | `SagaCompensateProducer` | Gerencia compensações                      |
+| `ws_notifications` | `ws.notify`        | `NotificationsProducer`  | Dispara notificações internas persistentes |
 
-**RabbitMQ**:
+Essa separação facilita manutenção, escalabilidade por domínio e leitura semântica clara da fila.
 
-- Exchange: `transactions.direct`
-- Filas principais:
-    - `transfer.queue` (processamento principal)
-    - `transfer.dlq` (mensagens problemáticas)
-- Políticas:
-    - Retentativa após falha (3x)
-    - Persistência de mensagens
+##### Serviços Externos
 
+| Serviço     | URL Mock                                   | Método | Descrição                                |
+|-------------|--------------------------------------------|--------|------------------------------------------|
+| Autorizador | `https://util.devi.tools/api/v2/authorize` | `GET`  | Verifica se a transferência é autorizada |
+| Notificação | `https://util.devi.tools/api/v1/notify`    | `POST` | Dispara notificação para o recebedor     |
+
+---
+
+#### Justificativas
+
+- O `api-gateway` concentra o domínio, facilitando manutenção e testes;
+- Saga orquestrada permite consistência mesmo em falhas parciais;
+- RabbitMQ fornece desacoplamento e resiliência entre as etapas;
+- Exchanges nomeadas por contexto aumentam a clareza e manutenibilidade;
+- Circuit breakers (planejados) protegem contra instabilidade externa.
+
+---
+
+#### Consequências
+
+- Mensageria torna o sistema tolerante a falhas de curto prazo;
+- O core de domínio bem definido facilita a futura extração de serviços independentes;
+- Alto grau de desacoplamento entre API, domínio e serviços externos;
+- A orquestração no `api-gateway` oferece um ponto de entrada único e rastreável;
+- Sistema preparado para escalar horizontalmente os consumidores e produtores.
+
+---
+
+#### Próximos Passos
+
+1. **Implementação de Circuit Breaker**
+
+- Proteger chamadas aos serviços externos (Autorizador e Notificação) para evitar sobrecarga ou espera desnecessária
+  durante instabilidades.
+
+2. **Divisão por Escopos (Extração Gradual de Microsserviços)**
+
+- Separar os contextos de negócio em serviços independentes:
+    - Serviço de Carteira (Wallet Service)
+    - Serviço de Transferência (Transfer Service)
+    - Serviço de Notificação (Notification Service)
+- Permitir deploy, escala e versionamento independentes.
+- Utilizar mensageria e REST para comunicação entre serviços.
+
+3. **Observabilidade**
+
+- Adição de logs estruturados, rastreamento distribuído (trace IDs) e métricas.
+- Preparar para integração com ferramentas como Grafana, Prometheus, OpenTelemetry.
+
+4. **CLI/Admin para Recuperação de Transações**
+
+- Permitir reprocessamento de transações falhadas ou pendentes via terminal.
+
+5. **Melhorias na Cobertura de Testes**
+
+- Mais casos de testes para falhas de autorização, inconsistências e compensações.
+
+---
+
+#### Conclusão
+
+A arquitetura proposta, com o `api-gateway` como **núcleo de orquestração**, é sólida e expansível. Ela proporciona um
+ambiente seguro para evoluir gradualmente em direção a microsserviços, manter o domínio centralizado, garantir
+consistência por meio de sagas e tolerar falhas externas com um plano claro de circuit breaker.
